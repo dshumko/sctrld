@@ -11,14 +11,14 @@ Netflow v5 Collector
   "NetflowAdress":"0.0.0.0:2055",
   "NetflowBufferSize":212992,
   "WebPort":"8080",
-  "CmdDown":"speed-set %s 0.5",
-  "CmdUp":"speed-set %s 100"
+  "CmdDown":"speed-down",
+  "CmdUp":"speed-up"
 }
 ```
 Настройка | Описание
 --- | --- 
 NetflowAdress  | ip и порт на которм слушать netflow. Пример: "0.0.0.0:2055"
-NetflowBufferSize | ахз зачем оно,
+NetflowBufferSize | Размер буфера пакетов netflow
 WebPort | Порт на котором работает WEB сервер. Пример: "8080"
 CmdDown | команда при достижении лимита. Должна принимать один параметр: IP адрес
 CmdUp | команда при увеличении лимита. Должна принимать один параметр: IP адрес

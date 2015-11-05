@@ -42,7 +42,7 @@ type TflowRecord struct {
 	_             uint16
 }
 
-func intToIPv4Addr(intAddr uint32) net.IP {
+func intToNetIp(intAddr uint32) net.IP {
 	return net.IPv4(
 		byte(intAddr>>24),
 		byte(intAddr>>16),
@@ -50,8 +50,17 @@ func intToIPv4Addr(intAddr uint32) net.IP {
 		byte(intAddr))
 }
 
+func netIpToInt(ip net.IP) uint32 {
+	p := ip.To4()
+	vip := uint32(p[0]) << 24
+	vip |= uint32(p[1]) << 16
+	vip |= uint32(p[2]) << 8
+	vip |= uint32(p[3])
+	return vip
+}
+
 func intToStrIP(intAddr uint32) string {
-	return intToIPv4Addr(intAddr).String()
+	return intToNetIp(intAddr).String()
 }
 
 func handleNetFlowPacket(buf *bytes.Buffer, remoteAddr *net.UDPAddr) {

@@ -1,11 +1,12 @@
-# sctrld
+## sctrld
+
 Netflow v5 Collector
 
-## Описание sctrld ## 
+## Описание sctrld
 
- приём Netflow v5 обсчёт заданных IP и выполнение команд при достижении лимита
+Приём Netflow v5 обсчёт заданных IP и выполнение команд при достижении лимита с возможностью задать временной период в который трафик считаться не будет.
  
-## параметры файла настроек sctrld.config ##
+## Файл настроек sctrld.config
 ```
 {
   "NetflowAdress":"0.0.0.0:2055",
@@ -15,21 +16,22 @@ Netflow v5 Collector
   "CmdUp":"speed-up"
 }
 ```
-Настройка | Описание
---- | --- 
-NetflowAdress  | ip и порт на которм слушать netflow. Пример: "0.0.0.0:2055"
+Параметры | Описание
+-------- | -------- 
+NetflowAdress | ip и порт на которм слушать netflow. Пример: "0.0.0.0:2055"
 NetflowBufferSize | Размер буфера пакетов netflow
 WebPort | Порт на котором работает WEB сервер. Пример: "8080"
 CmdDown | команда при достижении лимита. Должна принимать один параметр: IP адрес
 CmdUp | команда при увеличении лимита. Должна принимать один параметр: IP адрес
 
-## описание API ##
+## описание API
+
 Запрос   | Описание | Пример   | Ответ
 -------- | -------- | -------- | --------
-v1/set/  | Добавить IP для обсчета и установит лимит трафика | http://localhost:8080/v1/set/?ip=172.16.0.1&limit=200&offstart=1&offstop=2 | {"ip": "172.16.0.1", "stat": 0, "limit": 200, "offstart": 1, "offstop": 2}
-v1/add/ | Увеличить лимит для IP адреса на значение | http://localhost:8080/v1/add/?ip=172.16.0.1&limit=100 | {"ip": "172.16.0.1", "limit_add": 100}
-v1/get/ | Получить статистику по IP адресу | http://localhost:8080/v1/get/?ip=172.16.0.1 | {"ip": "172.16.0.1", "stat": 0, "limit": 300, "offstart": 1, "offstop": 2}
-runtime/ | Получить статистику по приложению. | http://localhost:8080/runtime/  | {"Memheap": 917504, "Memidle": 393216, "Meminuse": 524288, "goroutines": 7, "NextGC:": 4194304, "PauseTotalNs": 0}
+v1/set/ | Добавить IP для обсчета и установит лимит трафика | http://localhost:8080/v1/set/?ip=172.16.0.1&limit=100&offstart=1&offstop=2 | {"ip":"172.16.0.1","stat":0,"limit":100,"offstart":1,"offstop":2}
+v1/add/ | Увеличить лимит для IP адреса на значение | http://localhost:8080/v1/add/?ip=172.16.0.1&limit=50 | {"ip":"172.16.0.1","limit_add":50}
+v1/get/ | Получить статистику по IP адресу | http://localhost:8080/v1/get/?ip=172.16.0.1 | {"ip":"172.16.0.1","stat":0,"limit":150,"offstart":1,"offstop":2}
+runtime/ | Получить статистику по приложению | http://localhost:8080/runtime/  | {"memheap":917504,"memidle":434176,"meminuse":483328,"goroutines":7,"nextgc":4194304}
 
 Параметры | Описание | Пример
 -------- | --------  | --------

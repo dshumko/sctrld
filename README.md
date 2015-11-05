@@ -9,17 +9,17 @@ Netflow v5 Collector
 
  NetflowAdress  - ip и порт на которм слушать netflow. Пример: "0.0.0.0:2055"
  NetflowBufferSize - ахз зачем оно,
- WebPort - Порт на котором работает WEB сервер. Пример: "8080"
+  WebPort - Порт на котором работает WEB сервер. Пример: "8080"
  CmdDown - команда при достижении лимита. %s - IP адресю Пример "speed-set %s 0.5"
  CmdUp - команда при увеличении лимита. %s - IP адресю Пример "speed-set %s 100"
 
 ## описание API ##
 Запрос   | Описание | Пример   | Ответ
 -------- | -------- | -------- | --------
-v1/set/  | Увеличить лимит для IP адреса | http://localhost:8080/v1/set/?ip=127.0.0.1&limit=200&offstart=1&offstop=2 | 
-v1/add/ | Увеличить лимит для IP адреса на значение | http://localhost:8080/v1/add/?ip=127.0.0.1&limit=100 |
-v1/get/ | Получить статистику по IP адресу| http://localhost:8080/v1/get/?ip=127.0.0.1
-runtime/ | Получит статистику по приложению. | http://localhost:8080/runtime/  |
+v1/set/  | Добавить IP для обсчета и установит лимит трафика | http://localhost:8080/v1/set/?ip=172.16.0.1&limit=200&offstart=1&offstop=2 | {"ip": "172.16.0.1", "stat": 0, "limit": 200, "offstart": 1, "offstop": 2}
+v1/add/ | Увеличить лимит для IP адреса на значение | http://localhost:8080/v1/add/?ip=172.16.0.1&limit=100 | {"ip": "172.16.0.1", "limit_add": 100}
+v1/get/ | Получить статистику по IP адресу | http://localhost:8080/v1/get/?ip=172.16.0.1 | {"ip": "172.16.0.1", "stat": 0, "limit": 300, "offstart": 1, "offstop": 2}
+runtime/ | Получит статистику по приложению. | http://localhost:8080/runtime/  | {"Memheap": 917504, "Memidle": 393216, "Meminuse": 524288, "goroutines": 7, "NextGC:": 4194304, "PauseTotalNs": 0}
 
 Параметры | Описание | Пример
 -------- | --------  | --------

@@ -87,27 +87,26 @@ func GetIpInfo(id uint32) getResponse {
 func RunCMD(Id uint32, ipRec TipRecord, cmd string) {
 	// Тут блокируем IP
 	ips := intToStrIP(Id)
-	//cmd = fmt.Sprintf(cmd, ips)
-	exec.Command("/usr/local/bin/speed-set", ips, cmd).Run()
-	log.Printf("ip:%s\n%v\ncmd: %s %s %s\n", ips, ipRec, "/usr/local/bin/speed-set", ips, cmd)
+	exec.Command(cmd, ips).Run()
+	log.Printf("ip:%s\n%v\ncmd: %s %s\n", ips, ipRec, cmd, ips)
 }
 
 func main() {
-	var SccCfg TConfiguration
+	var sctrldCfg TConfiguration
 	var cur_hour int
 	var old_limit TIpTraffic
 
 	file, _ := os.Open("sctrld.config")
 	decoder := json.NewDecoder(file)
-	err := decoder.Decode(&SccCfg)
+	err := decoder.Decode(&sctrldCfg)
 	if err != nil {
-		SccCfg.NetflowAdress = "0.0.0.0:2055"
-		SccCfg.WebPort = "8080"
-		SccCfg.NetflowBufferSize = 212992
+		sctrldCfg.NetflowAdress = "0.0.0.0:2055"
+		sctrldCfg.WebPort = "8080"
+		sctrldCfg.NetflowBufferSize = 212992
 	}
 	file.Close()
-	log.Printf("Start netflow listening on %v\n", SccCfg.NetflowAdress)
-	go ListenNetflow(SccCfg.NetflowAdress, SccCfg.NetflowBufferSize)
+	log.Printf("Start netflow listening on %v\n", sctrldCfg.NetflowAdress)
+	go ListenNetflow(sctrldCfg.NetflowAdress, sctrldCfg.NetflowBufferSize)
 
 	storage := map[uint32]TipRecord{}
 
@@ -119,8 +118,8 @@ func main() {
 	http.HandleFunc("/v1/get/", httpGetStat)     // /v1/get/?ip=127.0.0.1
 	http.HandleFunc("/v1/add/", httpAddLimit)    // /v1/add/?ip=127.0.0.1&limit=100
 	http.HandleFunc("/v1/set/", httpSetLimit)    // /v1/set/?ip=127.0.0.1&limit=200
-	log.Printf("Start web listening on %v\n", SccCfg.WebPort)
-	go http.ListenAndServe(":"+SccCfg.WebPort, nil)
+	log.Printf("Start web listening on %v\n", sctrldCfg.WebPort)
+	go http.ListenAndServe(":"+sctrldCfg.WebPort, nil)
 
 	//go AddLimitToIp(2130706433, 100) // 127.0.0.1
 	//storage[2130706433] = TipRecord{0, 100}
@@ -160,7 +159,7 @@ func main() {
 					value.Traffic += put.Traffic
 					storage[put.Id] = value
 					if (value.Traffic > value.Limit) && (old_limit < value.Limit) {
-						go RunCMD(put.Id, value, "0.5")
+						go RunCMD(put.Id, value, sctrldCfg.CmdDown)
 					}
 				}
 			}
@@ -178,7 +177,7 @@ func main() {
 			value.OffCountStop = set.Value.OffCountStop
 			storage[set.Id] = value
 			if (old_limit < value.Traffic) && (value.Limit > value.Traffic) {
-				go RunCMD(set.Id, value, "100")
+				go RunCMD(set.Id, value, sctrldCfg.CmdUp)
 			}
 		}
 	}

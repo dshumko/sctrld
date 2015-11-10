@@ -167,7 +167,7 @@ func main() {
 					old_limit = value.Traffic
 					value.Traffic += put.Traffic
 					if (value.Traffic > value.Limit) && ((old_limit < value.Limit) || (value.InFullSpeed)) {
-						value.InFullSpeed = true
+						value.InFullSpeed = false
 						go RunCMD(put.Id, value, sctrldCfg.CmdDown)
 					}
 					storage[put.Id] = value

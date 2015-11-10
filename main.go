@@ -166,10 +166,11 @@ func main() {
 				if !((cur_hour >= value.OffCountStart) && (cur_hour < value.OffCountStop)) {
 					old_limit = value.Traffic
 					value.Traffic += put.Traffic
-					storage[put.Id] = value
-					if (value.Traffic > value.Limit) && (old_limit < value.Limit) {
+					if (value.Traffic > value.Limit) && ((old_limit < value.Limit) || (value.InFullSpeed)) {
+						value.InFullSpeed = true
 						go RunCMD(put.Id, value, sctrldCfg.CmdDown)
 					}
+					storage[put.Id] = value
 				} else {
 					if !(value.InFullSpeed) {
 						value.InFullSpeed = true

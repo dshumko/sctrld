@@ -22,6 +22,7 @@ type TIpTraffic uint64
 type TipRecord struct {
 	Traffic       TIpTraffic
 	Limit         TIpTraffic
+	InFullSpeed   bool
 	OffCountStart int
 	OffCountStop  int
 }
@@ -46,9 +47,13 @@ type getResponse struct {
 	IpRec TipRecord
 }
 
-var puts chan TAddTraffic
-var gets chan getRequest
-var sets chan setLimit
+var (
+	puts       chan TAddTraffic
+	gets       chan getRequest
+	sets       chan setLimit
+	maxCheckIP uint32
+	minCheckIP uint32
+)
 
 func AddLimitToIp(ip uint32, value TIpTraffic) {
 	response := GetIpInfo(ip)
@@ -95,6 +100,10 @@ func main() {
 	var sctrldCfg TConfiguration
 	var cur_hour int
 	var old_limit TIpTraffic
+
+	// чтоб не проверять все ip установим границы
+	maxCheckIP = 0
+	minCheckIP = 4294967295
 
 	file, _ := os.Open("sctrld.config")
 	decoder := json.NewDecoder(file)
@@ -161,6 +170,12 @@ func main() {
 					if (value.Traffic > value.Limit) && (old_limit < value.Limit) {
 						go RunCMD(put.Id, value, sctrldCfg.CmdDown)
 					}
+				} else {
+					if !(value.InFullSpeed) {
+						value.InFullSpeed = true
+						storage[put.Id] = value
+						go RunCMD(put.Id, value, sctrldCfg.CmdUp)
+					}
 				}
 			}
 		case get := <-gets:
@@ -170,6 +185,12 @@ func main() {
 				Found: found,
 			}
 		case set := <-sets:
+			if set.Id > maxCheckIP {
+				maxCheckIP = set.Id
+			}
+			if set.Id < minCheckIP {
+				minCheckIP = set.Id
+			}
 			value, _ := storage[set.Id]
 			old_limit = set.Value.Limit
 			value.Limit = set.Value.Limit

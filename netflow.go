@@ -79,12 +79,10 @@ func handleNetFlowPacket(buf *bytes.Buffer, remoteAddr *net.UDPAddr) {
 			log.Fatalf("binary.Read failed: %v\n", err)
 		}
 
-		// 172.16.0.0     - 2886729728
-		// 172.26.255.255 - 2887450623
-		if (record.Ipv4SrcAddr < 2887450623) && (record.Ipv4SrcAddr > 2886729728) {
+		if (record.Ipv4SrcAddr >= minCheckIP) && (record.Ipv4SrcAddr <= maxCheckIP) {
 			id = record.Ipv4SrcAddr
 		} else {
-			if (record.Ipv4DstAddr < 2887450623) && (record.Ipv4DstAddr > 2886729728) {
+			if (record.Ipv4DstAddr >= minCheckIP) && (record.Ipv4DstAddr <= maxCheckIP) {
 				id = record.Ipv4DstAddr
 			}
 		}

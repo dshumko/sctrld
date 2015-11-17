@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"gopkg.in/hlandau/service.v2"
 	"log"
 	"net/http"
 	"os"
@@ -96,66 +97,10 @@ func RunCMD(Id uint32, ipRec TipRecord, cmd string) {
 	log.Printf("ip:%s\n%v\ncmd: %s %s\n", ips, ipRec, cmd, ips)
 }
 
-func main() {
-	var sctrldCfg TConfiguration
+func ChanProcess(sctrldCfg TConfiguration) {
 	var cur_hour int
 	var old_limit TIpTraffic
-
-	// чтоб не проверять все ip установим границы
-	maxCheckIP = 0
-	minCheckIP = 4294967295
-
-	file, _ := os.Open("sctrld.config")
-	decoder := json.NewDecoder(file)
-	err := decoder.Decode(&sctrldCfg)
-	if err != nil {
-		sctrldCfg.NetflowAdress = "0.0.0.0:2055"
-		sctrldCfg.WebPort = "8080"
-		sctrldCfg.NetflowBufferSize = 212992
-	}
-	file.Close()
-	log.Printf("Start netflow listening on %v\n", sctrldCfg.NetflowAdress)
-	go ListenNetflow(sctrldCfg.NetflowAdress, sctrldCfg.NetflowBufferSize)
-
 	storage := map[uint32]TipRecord{}
-
-	puts = make(chan TAddTraffic)
-	gets = make(chan getRequest)
-	sets = make(chan setLimit)
-
-	http.HandleFunc("/runtime/", httpGetRuntime) // /v1/get/?ip=127.0.0.1
-	http.HandleFunc("/v1/get/", httpGetStat)     // /v1/get/?ip=127.0.0.1
-	http.HandleFunc("/v1/add/", httpAddLimit)    // /v1/add/?ip=127.0.0.1&limit=100
-	http.HandleFunc("/v1/set/", httpSetLimit)    // /v1/set/?ip=127.0.0.1&limit=200
-	log.Printf("Start web listening on %v\n", sctrldCfg.WebPort)
-	go http.ListenAndServe(":"+sctrldCfg.WebPort, nil)
-
-	//go AddLimitToIp(2130706433, 100) // 127.0.0.1
-	//storage[2130706433] = TipRecord{0, 100}
-	/*
-		создаем 10 канадов для работы со своей зоной IP
-		и каждую зону передавать по своим каналам
-		а также для каждой зоны будет свой map
-		что ускорит обработку и запаралелит еще больше
-
-		проверку IP нужно сделать через AND 53EF FFFF и SHR 16
-
-		53EF FFFF = not AC100000
-
-		172.16.0.0	AC100000	0
-		172.17.0.0	AC110000	1
-		172.18.0.0	AC120000	2
-		172.19.0.0	AC130000	3
-		172.20.0.0	AC140000	4
-		172.21.0.0	AC150000	5
-		172.22.0.0	AC160000	6
-		172.23.0.0	AC170000	7
-		172.24.0.0	AC180000	8
-		172.25.0.0	AC190000	9
-		172.26.0.0	AC1A0000	10
-		172.27.0.0	AC1B0000	11
-		172.28.0.0	AC1C0000	12
-	*/
 
 	for {
 		select {
@@ -203,4 +148,92 @@ func main() {
 			}
 		}
 	}
+}
+
+func main() {
+	var sctrldCfg TConfiguration
+
+	service.Main(&service.Info{
+		Title:       "Stream control server",
+		Name:        "sctrld",
+		Description: "Count traf for stream and up or down stream speed.",
+
+		RunFunc: func(smgr service.Manager) error {
+			// Start up your service.
+			// ...
+
+			// Once initialization requiring root is done, call this.
+			err := smgr.DropPrivileges()
+			if err != nil {
+				return err
+			}
+
+			// When it is ready to serve requests, call this.
+			// You must call DropPrivileges first.
+			smgr.SetStarted()
+
+			// Optionally set a status.
+			smgr.SetStatus("sctrld: running ok")
+
+			// Do any necessary teardown.
+			// чтоб не проверять все ip установим границы
+			maxCheckIP = 0
+			minCheckIP = 4294967295
+
+			file, _ := os.Open("sctrld.config")
+			decoder := json.NewDecoder(file)
+			err = decoder.Decode(&sctrldCfg)
+			if err != nil {
+				sctrldCfg.NetflowAdress = "0.0.0.0:2055"
+				sctrldCfg.WebPort = "8080"
+				sctrldCfg.NetflowBufferSize = 212992
+			}
+			file.Close()
+			log.Printf("Start netflow listening on %v\n", sctrldCfg.NetflowAdress)
+			go ListenNetflow(sctrldCfg.NetflowAdress, sctrldCfg.NetflowBufferSize)
+
+			puts = make(chan TAddTraffic)
+			gets = make(chan getRequest)
+			sets = make(chan setLimit)
+
+			http.HandleFunc("/runtime/", httpGetRuntime) // /v1/get/?ip=127.0.0.1
+			http.HandleFunc("/v1/get/", httpGetStat)     // /v1/get/?ip=127.0.0.1
+			http.HandleFunc("/v1/add/", httpAddLimit)    // /v1/add/?ip=127.0.0.1&limit=100
+			http.HandleFunc("/v1/set/", httpSetLimit)    // /v1/set/?ip=127.0.0.1&limit=200
+			log.Printf("Start web listening on %v\n", sctrldCfg.WebPort)
+			go http.ListenAndServe(":"+sctrldCfg.WebPort, nil)
+
+			//go AddLimitToIp(2130706433, 100) // 127.0.0.1
+			//storage[2130706433] = TipRecord{0, 100}
+			/*
+				создаем 10 канадов для работы со своей зоной IP
+				и каждую зону передавать по своим каналам
+				а также для каждой зоны будет свой map
+				что ускорит обработку и запаралелит еще больше
+
+				проверку IP нужно сделать через AND 53EF FFFF и SHR 16
+
+				53EF FFFF = not AC100000
+
+				172.16.0.0	AC100000	0
+				172.17.0.0	AC110000	1
+				172.18.0.0	AC120000	2
+				172.19.0.0	AC130000	3
+				172.20.0.0	AC140000	4
+				172.21.0.0	AC150000	5
+				172.22.0.0	AC160000	6
+				172.23.0.0	AC170000	7
+				172.24.0.0	AC180000	8
+				172.25.0.0	AC190000	9
+				172.26.0.0	AC1A0000	10
+				172.27.0.0	AC1B0000	11
+				172.28.0.0	AC1C0000	12
+			*/
+			go ChanProcess(sctrldCfg)
+			// Wait until stop is requested.
+			<-smgr.StopChan()
+			// Done.
+			return nil
+		},
+	})
 }

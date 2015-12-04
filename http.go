@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
-	"strings"
 )
 
 type TAnswerRuntime struct {
@@ -37,20 +36,6 @@ type TAnswerError struct {
 	Error string `json:"error"`
 }
 
-func IPV4AddrToInt(addr string) (uint32, error) {
-	parts := strings.Split(addr, ".")
-	var ip uint32
-	part, err := strconv.Atoi(parts[0])
-	ip |= uint32(part) << 24
-	part, err = strconv.Atoi(parts[1])
-	ip |= uint32(part) << 16
-	part, err = strconv.Atoi(parts[2])
-	ip |= uint32(part) << 8
-	part, err = strconv.Atoi(parts[3])
-	ip |= uint32(part)
-	return ip, err
-}
-
 func httpGetRuntime(w http.ResponseWriter, r *http.Request) {
 	var vAnswer TAnswerRuntime
 
@@ -76,12 +61,12 @@ func httpGetStat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	v := r.URL.Query()
 	ip_adr := v.Get("ip")
-	ip, err := IPV4AddrToInt(ip_adr)
-	if err != nil {
+	IPAddress := net.ParseIP(ip_adr)
+	if IPAddress == nil {
 		vError.Error = fmt.Sprintf("ip format error %s", ip_adr)
 		js, _ = json.Marshal(vError)
 	} else {
-		response := GetIpInfo(uint32(ip))
+		response := GetIpInfo(netIpToInt(IPAddress))
 		if response.Found {
 			vAnswer.Ip = ip_adr
 			vAnswer.Limit = response.IpRec.Limit
@@ -108,8 +93,8 @@ func httpAddLimit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	v := r.URL.Query()
 	ip_adr := v.Get("ip")
-	ip, err := IPV4AddrToInt(ip_adr)
-	if err != nil {
+	IPAddress := net.ParseIP(ip_adr)
+	if IPAddress == nil {
 		vError.Error = fmt.Sprintf("ip format error %s", ip_adr)
 		js, _ = json.Marshal(vError)
 	} else {
@@ -118,7 +103,7 @@ func httpAddLimit(w http.ResponseWriter, r *http.Request) {
 			vError.Error = fmt.Sprintf("limit error %s", v.Get("limit"))
 			js, _ = json.Marshal(vError)
 		} else {
-			AddLimitToIp(ip, TIpTraffic(traf))
+			AddLimitToIp(netIpToInt(IPAddress), TIpTraffic(traf))
 			vAnswer.Ip = ip_adr
 			vAnswer.Limit = TIpTraffic(traf)
 			js, _ = json.Marshal(vAnswer)

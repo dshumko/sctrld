@@ -140,14 +140,13 @@ func ChanProcess(sctrldCfg TConfiguration) {
 				minCheckIP = set.Id
 			}
 			value, _ := storage[set.Id]
-			old_limit = set.Value.Limit
 			value.Limit = set.Value.Limit
 			value.OffCountStart = set.Value.OffCountStart
 			value.OffCountStop = set.Value.OffCountStop
 			value.SpeedUp = set.Value.SpeedUp
 			value.SpeedDown = set.Value.SpeedDown
 			storage[set.Id] = value
-			if (old_limit < value.Traffic) && (value.Limit > value.Traffic) {
+			if value.Limit > value.Traffic {
 				go RunCMD(set.Id, value, sctrldCfg.CmdUp, value.SpeedUp)
 			}
 		}

@@ -95,7 +95,7 @@ func RunCMD(Id uint32, ipRec TipRecord, cmd string, speed string) {
 	// Тут блокируем IP
 	ips := intToStrIP(Id)
 	exec.Command(cmd, ips, speed).Run()
-	log.Printf("ip:%s\n%v\ncmd: %s %s\n", ips, ipRec, cmd, ips)
+	log.Printf("ip:%s\n%v\ncmd: %s %s %s\n", ips, ipRec, cmd, ips, speed)
 }
 
 func ChanProcess(sctrldCfg TConfiguration) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"gopkg.in/hlandau/service.v2"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +25,8 @@ type TipRecord struct {
 	InFullSpeed   bool
 	OffCountStart int
 	OffCountStop  int
+	SpeedUp       string
+	SpeedDown     string
 }
 
 type TAddTraffic struct {
@@ -90,10 +91,10 @@ func GetIpInfo(id uint32) getResponse {
 	return response
 }
 
-func RunCMD(Id uint32, ipRec TipRecord, cmd string) {
+func RunCMD(Id uint32, ipRec TipRecord, cmd string, speed string) {
 	// Тут блокируем IP
 	ips := intToStrIP(Id)
-	exec.Command(cmd, ips).Run()
+	exec.Command(cmd, ips, speed).Run()
 	log.Printf("ip:%s\n%v\ncmd: %s %s\n", ips, ipRec, cmd, ips)
 }
 
@@ -113,14 +114,14 @@ func ChanProcess(sctrldCfg TConfiguration) {
 					value.Traffic += put.Traffic
 					if (value.Traffic > value.Limit) && ((old_limit < value.Limit) || (value.InFullSpeed)) {
 						value.InFullSpeed = false
-						go RunCMD(put.Id, value, sctrldCfg.CmdDown)
+						go RunCMD(put.Id, value, sctrldCfg.CmdDown, value.SpeedDown)
 					}
 					storage[put.Id] = value
 				} else {
 					if !(value.InFullSpeed) {
 						value.InFullSpeed = true
 						storage[put.Id] = value
-						go RunCMD(put.Id, value, sctrldCfg.CmdUp)
+						go RunCMD(put.Id, value, sctrldCfg.CmdUp, value.SpeedUp)
 					}
 				}
 			}
@@ -130,6 +131,7 @@ func ChanProcess(sctrldCfg TConfiguration) {
 				IpRec: value,
 				Found: found,
 			}
+
 		case set := <-sets:
 			if set.Id > maxCheckIP {
 				maxCheckIP = set.Id
@@ -142,9 +144,11 @@ func ChanProcess(sctrldCfg TConfiguration) {
 			value.Limit = set.Value.Limit
 			value.OffCountStart = set.Value.OffCountStart
 			value.OffCountStop = set.Value.OffCountStop
+			value.SpeedUp = set.Value.SpeedUp
+			value.SpeedDown = set.Value.SpeedDown
 			storage[set.Id] = value
 			if (old_limit < value.Traffic) && (value.Limit > value.Traffic) {
-				go RunCMD(set.Id, value, sctrldCfg.CmdUp)
+				go RunCMD(set.Id, value, sctrldCfg.CmdUp, value.SpeedUp)
 			}
 		}
 	}
@@ -153,87 +157,59 @@ func ChanProcess(sctrldCfg TConfiguration) {
 func main() {
 	var sctrldCfg TConfiguration
 
-	service.Main(&service.Info{
-		Title:       "Stream control server",
-		Name:        "sctrld",
-		Description: "Count traf for stream and up or down stream speed.",
+	// Do any necessary teardown.
+	// чтоб не проверять все ip установим границы
+	maxCheckIP = 0
+	minCheckIP = 4294967295
 
-		RunFunc: func(smgr service.Manager) error {
-			// Start up your service.
-			// ...
+	file, _ := os.Open("sctrld.config")
+	decoder := json.NewDecoder(file)
+	err := decoder.Decode(&sctrldCfg)
+	if err != nil {
+		sctrldCfg.NetflowAdress = "0.0.0.0:2055"
+		sctrldCfg.WebPort = "8080"
+		sctrldCfg.NetflowBufferSize = 212992
+	}
+	file.Close()
+	log.Printf("Start netflow listening on %v\n", sctrldCfg.NetflowAdress)
+	go ListenNetflow(sctrldCfg.NetflowAdress, sctrldCfg.NetflowBufferSize)
 
-			// Once initialization requiring root is done, call this.
-			err := smgr.DropPrivileges()
-			if err != nil {
-				return err
-			}
+	puts = make(chan TAddTraffic)
+	gets = make(chan getRequest)
+	sets = make(chan setLimit)
 
-			// When it is ready to serve requests, call this.
-			// You must call DropPrivileges first.
-			smgr.SetStarted()
+	http.HandleFunc("/runtime/", httpGetRuntime) // /v1/get/?ip=127.0.0.1
+	http.HandleFunc("/v1/get/", httpGetStat)     // /v1/get/?ip=127.0.0.1
+	http.HandleFunc("/v1/add/", httpAddLimit)    // /v1/add/?ip=127.0.0.1&limit=100
+	http.HandleFunc("/v1/set/", httpSetLimit)    // /v1/set/?ip=127.0.0.1&limit=200
+	log.Printf("Start web listening on %v\n", sctrldCfg.WebPort)
+	go http.ListenAndServe(":"+sctrldCfg.WebPort, nil)
 
-			// Optionally set a status.
-			smgr.SetStatus("sctrld: running ok")
+	//go AddLimitToIp(2130706433, 100) // 127.0.0.1
+	//storage[2130706433] = TipRecord{0, 100}
+	/*
+		создаем 10 канадов для работы со своей зоной IP
+		и каждую зону передавать по своим каналам
+		а также для каждой зоны будет свой map
+		что ускорит обработку и запаралелит еще больше
 
-			// Do any necessary teardown.
-			// чтоб не проверять все ip установим границы
-			maxCheckIP = 0
-			minCheckIP = 4294967295
+		проверку IP нужно сделать через AND 53EF FFFF и SHR 16
 
-			file, _ := os.Open("sctrld.config")
-			decoder := json.NewDecoder(file)
-			err = decoder.Decode(&sctrldCfg)
-			if err != nil {
-				sctrldCfg.NetflowAdress = "0.0.0.0:2055"
-				sctrldCfg.WebPort = "8080"
-				sctrldCfg.NetflowBufferSize = 212992
-			}
-			file.Close()
-			log.Printf("Start netflow listening on %v\n", sctrldCfg.NetflowAdress)
-			go ListenNetflow(sctrldCfg.NetflowAdress, sctrldCfg.NetflowBufferSize)
+		53EF FFFF = not AC100000
 
-			puts = make(chan TAddTraffic)
-			gets = make(chan getRequest)
-			sets = make(chan setLimit)
-
-			http.HandleFunc("/runtime/", httpGetRuntime) // /v1/get/?ip=127.0.0.1
-			http.HandleFunc("/v1/get/", httpGetStat)     // /v1/get/?ip=127.0.0.1
-			http.HandleFunc("/v1/add/", httpAddLimit)    // /v1/add/?ip=127.0.0.1&limit=100
-			http.HandleFunc("/v1/set/", httpSetLimit)    // /v1/set/?ip=127.0.0.1&limit=200
-			log.Printf("Start web listening on %v\n", sctrldCfg.WebPort)
-			go http.ListenAndServe(":"+sctrldCfg.WebPort, nil)
-
-			//go AddLimitToIp(2130706433, 100) // 127.0.0.1
-			//storage[2130706433] = TipRecord{0, 100}
-			/*
-				создаем 10 канадов для работы со своей зоной IP
-				и каждую зону передавать по своим каналам
-				а также для каждой зоны будет свой map
-				что ускорит обработку и запаралелит еще больше
-
-				проверку IP нужно сделать через AND 53EF FFFF и SHR 16
-
-				53EF FFFF = not AC100000
-
-				172.16.0.0	AC100000	0
-				172.17.0.0	AC110000	1
-				172.18.0.0	AC120000	2
-				172.19.0.0	AC130000	3
-				172.20.0.0	AC140000	4
-				172.21.0.0	AC150000	5
-				172.22.0.0	AC160000	6
-				172.23.0.0	AC170000	7
-				172.24.0.0	AC180000	8
-				172.25.0.0	AC190000	9
-				172.26.0.0	AC1A0000	10
-				172.27.0.0	AC1B0000	11
-				172.28.0.0	AC1C0000	12
-			*/
-			go ChanProcess(sctrldCfg)
-			// Wait until stop is requested.
-			<-smgr.StopChan()
-			// Done.
-			return nil
-		},
-	})
+		172.16.0.0	AC100000	0
+		172.17.0.0	AC110000	1
+		172.18.0.0	AC120000	2
+		172.19.0.0	AC130000	3
+		172.20.0.0	AC140000	4
+		172.21.0.0	AC150000	5
+		172.22.0.0	AC160000	6
+		172.23.0.0	AC170000	7
+		172.24.0.0	AC180000	8
+		172.25.0.0	AC190000	9
+		172.26.0.0	AC1A0000	10
+		172.27.0.0	AC1B0000	11
+		172.28.0.0	AC1C0000	12
+	*/
+	ChanProcess(sctrldCfg)
 }

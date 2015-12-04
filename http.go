@@ -24,6 +24,8 @@ type TAnswerStat struct {
 	Limit         TIpTraffic `json:"limit"`
 	OffCountStart int        `json:"offstart"`
 	OffCountStop  int        `json:"offstop"`
+	SpeedUp       string     `json:"speedup"`
+	SpeedDown     string     `json:"speeddown"`
 }
 
 type TAnswerLimitAdd struct {
@@ -152,16 +154,32 @@ func httpSetLimit(w http.ResponseWriter, r *http.Request) {
 					vError.Error = fmt.Sprintf("offstop error %s", v.Get("offstop"))
 					js, _ = json.Marshal(vError)
 				} else {
-					rec.Limit = TIpTraffic(traf)
-					rec.OffCountStart = offstart
-					rec.OffCountStop = offstop
-					SetLimitToIp(netIpToInt(IPAddress), rec)
-					vAnswer.Ip = ip_adr
-					vAnswer.Traffic = rec.Traffic
-					vAnswer.Limit = rec.Limit
-					vAnswer.OffCountStart = rec.OffCountStart
-					vAnswer.OffCountStop = rec.OffCountStop
-					js, _ = json.Marshal(vAnswer)
+					_, err := strconv.Atoi(v.Get("speedup"))
+					if err != nil {
+						vError.Error = fmt.Sprintf("speedup error %s", v.Get("speedup"))
+						js, _ = json.Marshal(vError)
+					} else {
+						_, err := strconv.Atoi(v.Get("speeddown"))
+						if err != nil {
+							vError.Error = fmt.Sprintf("speeddown error %s", v.Get("speeddown"))
+							js, _ = json.Marshal(vError)
+						} else {
+							rec.Limit = TIpTraffic(traf)
+							rec.OffCountStart = offstart
+							rec.OffCountStop = offstop
+							rec.SpeedUp = v.Get("speedup")
+							rec.SpeedDown = v.Get("speeddown")
+							SetLimitToIp(netIpToInt(IPAddress), rec)
+							vAnswer.Ip = ip_adr
+							vAnswer.Traffic = rec.Traffic
+							vAnswer.Limit = rec.Limit
+							vAnswer.OffCountStart = rec.OffCountStart
+							vAnswer.OffCountStop = rec.OffCountStop
+							vAnswer.SpeedUp = rec.SpeedUp
+							vAnswer.SpeedDown = rec.SpeedDown
+							js, _ = json.Marshal(vAnswer)
+						}
+					}
 				}
 			}
 		}

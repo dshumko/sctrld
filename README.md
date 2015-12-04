@@ -28,7 +28,7 @@ CmdUp | команда при увеличении лимита. Должна п
 
 Запрос   | Описание | Пример   | Ответ
 -------- | -------- | -------- | --------
-v1/set/ | Добавить IP для обсчета и установит лимит трафика | http://localhost:8080/v1/set/?ip=172.16.0.1&limit=100&offstart=1&offstop=2 | {"ip":"172.16.0.1","stat":0,"limit":100,"offstart":1,"offstop":2}
+v1/set/ | Добавить IP для обсчета и установит лимит трафика | http://localhost:8080/v1/set/?ip=172.16.0.1&limit=100&offstart=1&offstop=2&speedup=1000&speeddown=50 | {"ip":"172.16.0.1","stat":0,"limit":100,"offstart":1,"offstop":2, "speedup":"1000", "speeddown":"50"}
 v1/add/ | Увеличить лимит для IP адреса на значение | http://localhost:8080/v1/add/?ip=172.16.0.1&limit=50 | {"ip":"172.16.0.1","limit_add":50}
 v1/get/ | Получить статистику по IP адресу | http://localhost:8080/v1/get/?ip=172.16.0.1 | {"ip":"172.16.0.1","stat":0,"limit":150,"offstart":1,"offstop":2}
 runtime/ | Получить статистику по приложению | http://localhost:8080/runtime/  | {"memheap":917504,"memidle":434176,"meminuse":483328,"goroutines":7,"nextgc":4194304}

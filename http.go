@@ -87,6 +87,8 @@ func httpGetStat(w http.ResponseWriter, r *http.Request) {
 			vAnswer.Limit = response.IpRec.Limit
 			vAnswer.OffCountStart = response.IpRec.OffCountStart
 			vAnswer.OffCountStop = response.IpRec.OffCountStop
+			vAnswer.SpeedUp = response.IpRec.SpeedUp
+			vAnswer.SpeedDown = response.IpRec.SpeedDown
 			vAnswer.Traffic = response.IpRec.Traffic
 			js, _ = json.Marshal(vAnswer)
 

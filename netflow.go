@@ -74,6 +74,7 @@ func handleNetFlowPacket(buf *bytes.Buffer, remoteAddr *net.UDPAddr) {
 
 	for i := 0; i < int(header.FlowRecords); i++ {
 		record := TflowRecord{}
+		id = 0
 		err := binary.Read(buf, binary.BigEndian, &record)
 		if err != nil {
 			log.Fatalf("binary.Read failed: %v\n", err)
@@ -86,20 +87,10 @@ func handleNetFlowPacket(buf *bytes.Buffer, remoteAddr *net.UDPAddr) {
 				id = record.Ipv4DstAddr
 			}
 		}
-		// record.Ipv4SrcAddrInt
-		// record.Ipv4DstAddrInt
-		// record.InBytes
-		if id > 0 {
-			//log.Printf("Start web listening on %v\n", SccCfg.WebPort)
-			//buf, err := json.Marshal(record)
-			//if err != nil {
-			//	log.Fatalf("json.Marshal failed: %v\n", err)
-			//}
 
-			//fmt.Printf("%v\n", string(buf))
+		if id > 0 {
 			AddTraffic(id, TIpTraffic(record.InBytes))
 		}
-
 	}
 }
 
